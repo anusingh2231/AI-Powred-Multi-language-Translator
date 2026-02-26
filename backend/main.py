@@ -22,7 +22,7 @@ def translate_text(request: TranslationRequest):
     source_language = detect(request.text)
 
     prompt = f"""
-    You are a professional multilingual translator.
+    You are a professional multilingual Translator.
 
     Translate the following text from {source_language} to {request.target_language}.
     Maintain contextual meaning.
