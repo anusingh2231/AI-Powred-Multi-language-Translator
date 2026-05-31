@@ -1,44 +1,44 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from openai import OpenAI
-from langdetect import detect
-from dotenv import load_dotenv
-import os
-
-load_dotenv()
+from googletrans import Translator
 
 app = FastAPI()
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# CORS (safe to keep)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+translator = Translator()
 
 class TranslationRequest(BaseModel):
     text: str
+    source_language: str
     target_language: str
-    tone: str = "Neutral"
 
 @app.post("/translate")
 def translate_text(request: TranslationRequest):
 
-    source_language = detect(request.text)
-
-    prompt = f"""
-    You are a professional multilingual Translator.
-
-    Translate the following text from {source_language} to {request.target_language}.
-    Maintain contextual meaning.
-    Use {request.tone} tone.
-
-    Provide:
-    1. Only translated text.
-    2. A confidence score (0-100).
-    """
-
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}]
+    translated = translator.translate(
+        request.text,
+        src=request.source_language,
+        dest=request.target_language
     )
 
     return {
-        "source_language": source_language,
-        "translation": response.choices[0].message.content
+        "translation": translated.text
     }
+
+# Serve React static files
+app.mount("/static", StaticFiles(directory="../frontend/build/static"), name="static")
+
+@app.get("/{full_path:path}")
+def serve_react_app(full_path: str):
+    return FileResponse("../frontend/build/index.html")
